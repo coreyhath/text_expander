@@ -261,6 +261,18 @@ class _InputDialog(tk.Toplevel):
         self.destroy()
 
 
+DEFAULT_MODEL = "gpt-4o-mini"
+_FALLBACK_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"]
+
+
+def _fetch_openai_models(api_key: str) -> list[str]:
+    """Return sorted list of chat-capable model IDs from the OpenAI API."""
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
+    models = [m.id for m in client.models.list() if "gpt" in m.id]
+    return sorted(set(models), reverse=True)
+
+
 class SettingsDialog(tk.Toplevel):
     """Global settings (not per-profile)."""
 
@@ -271,25 +283,76 @@ class SettingsDialog(tk.Toplevel):
         self.grab_set()
         pad = {"padx": 12, "pady": 6}
 
+        # API Key row
         ttk.Label(self, text="OpenAI API Key:").grid(row=0, column=0, sticky="w", **pad)
         self._key_var = tk.StringVar(value=db.get_setting("OPENAI_API_KEY"))
         entry = ttk.Entry(self, textvariable=self._key_var, width=44, show="*")
         entry.grid(row=0, column=1, sticky="ew", **pad)
-
-        # Toggle visibility
         self._show_key = False
         self._toggle_btn = ttk.Button(self, text="Show", width=6, command=self._toggle_show)
         self._toggle_btn.grid(row=0, column=2, padx=(0, 12))
         self._entry = entry
 
+        # Model row
+        ttk.Label(self, text="OpenAI Model:").grid(row=1, column=0, sticky="w", **pad)
+        saved_model = db.get_setting("OPENAI_MODEL", DEFAULT_MODEL)
+        self._model_var = tk.StringVar(value=saved_model)
+        self._model_cb = ttk.Combobox(
+            self, textvariable=self._model_var,
+            values=_FALLBACK_MODELS, width=30,
+        )
+        self._model_cb.grid(row=1, column=1, sticky="w", **pad)
+
+        self._model_status = ttk.Label(self, text="", foreground="gray",
+                                       font=("TkDefaultFont", 9))
+        self._model_status.grid(row=1, column=2, sticky="w", padx=(0, 12))
+
+        # Refresh button — fetch model list from API
+        ttk.Button(self, text="↻ Refresh Models",
+                   command=self._refresh_models).grid(row=2, column=1, sticky="w",
+                                                      padx=12, pady=(0, 4))
+
         btn_frame = ttk.Frame(self)
-        btn_frame.grid(row=1, column=0, columnspan=3, pady=10)
+        btn_frame.grid(row=3, column=0, columnspan=3, pady=10)
         ttk.Button(btn_frame, text="Save",   command=self._save).pack(side="left", padx=4)
         ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="left", padx=4)
 
         self.columnconfigure(1, weight=1)
         self.bind("<Return>", lambda _: self._save())
         self.bind("<Escape>", lambda _: self.destroy())
+
+        # Auto-fetch on open if a key is already saved
+        if self._key_var.get().strip():
+            self.after(100, self._refresh_models)
+
+    def _refresh_models(self):
+        api_key = self._key_var.get().strip()
+        if not api_key:
+            self._model_status.config(text="Enter an API key first.", foreground="orange")
+            return
+        self._model_status.config(text="Loading…", foreground="gray")
+        self._model_cb.config(state="disabled")
+
+        import threading
+        threading.Thread(target=self._fetch_and_update, args=(api_key,), daemon=True).start()
+
+    def _fetch_and_update(self, api_key: str):
+        try:
+            models = _fetch_openai_models(api_key)
+            self.after(0, lambda: self._apply_models(models))
+        except Exception as e:
+            self.after(0, lambda: self._model_status.config(
+                text=f"Error: {e}", foreground="red"))
+            self.after(0, lambda: self._model_cb.config(state="normal"))
+
+    def _apply_models(self, models: list[str]):
+        current = self._model_var.get()
+        self._model_cb.config(values=models, state="normal")
+        # Keep current selection if it's in the list, otherwise pick first
+        if current not in models and models:
+            self._model_var.set(models[0])
+        self._model_status.config(
+            text=f"{len(models)} models loaded", foreground="green")
 
     def _toggle_show(self):
         self._show_key = not self._show_key
@@ -298,6 +361,7 @@ class SettingsDialog(tk.Toplevel):
 
     def _save(self):
         db.set_setting("OPENAI_API_KEY", self._key_var.get().strip())
+        db.set_setting("OPENAI_MODEL", self._model_var.get().strip() or DEFAULT_MODEL)
         self.destroy()
 
 

@@ -92,7 +92,7 @@ def _do_llm_query(trigger: str, prompt_template: str) -> None:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
         stream = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=db.get_setting("OPENAI_MODEL", "gpt-4o-mini"),
             messages=[{"role": "user", "content": prompt}],
             stream=True,
         )
