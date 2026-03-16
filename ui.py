@@ -26,7 +26,7 @@ EXPANSION_LABELS = {
 
 EXPANSION_HINTS = {
     "llm_query":         "Use {{clipboard}}, {{job_description}}, {{resume}}, etc.",
-    "gen_cover_letter":  "Use {{resume}}, {{job_description}}, etc. Result saved as PDF in ~/Downloads.",
+    "gen_cover_letter":  "Use {{resume}}, {{job_description}}, {{date}}, etc. Result saved as PDF in ~/Downloads.",
     "store_clipboard":   "e.g. job_description, resume, …",
 }
 

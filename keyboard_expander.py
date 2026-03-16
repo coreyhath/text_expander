@@ -143,7 +143,8 @@ def _do_llm_query(trigger: str, prompt_template: str) -> None:
 
 
 def _do_gen_cover_letter(trigger: str, prompt_template: str) -> None:
-    prompt = prompt_template
+    today = datetime.now().strftime("%B %d, %Y")
+    prompt = prompt_template.replace("{{date}}", today)
     for var_name, value in _session.items():
         prompt = prompt.replace(f"{{{{{var_name}}}}}", value)
 
@@ -166,8 +167,7 @@ def _do_gen_cover_letter(trigger: str, prompt_template: str) -> None:
         )
         text = response.choices[0].message.content or ""
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"cover_letter_{timestamp}.pdf"
+        filename = "coverletter.pdf"
         filepath = Path.home() / "Downloads" / filename
         _save_pdf(text, str(filepath))
 

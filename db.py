@@ -11,10 +11,12 @@ LLM_QUERY_DEFAULT_PROMPT = (
 )
 
 COVER_LETTER_DEFAULT_PROMPT = (
+    "Today's date is {{date}}.\n\n"
     "Here is a resume:\n<<<{{resume}}>>>\n\n"
     "Here is a job description:\n<<<{{job_description}}>>>\n\n"
     "Write a professional, tailored cover letter for this position. "
-    "Use standard business letter format. Be specific about why this candidate is a strong fit. "
+    "Use standard business letter format and include today's date at the top. "
+    "Be specific about why this candidate is a strong fit. "
     "Keep it to one page. Output only the letter text, no extra commentary."
 )
 
