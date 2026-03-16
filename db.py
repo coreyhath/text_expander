@@ -18,6 +18,7 @@ COVER_LETTER_DEFAULT_PROMPT = (
     "Use standard business letter format and include today's date at the top. "
     "Be specific about why this candidate is a strong fit. "
     "Keep it to one page. Output only the letter text, no extra commentary."
+    "Don't use '—' character."
 )
 
 # Seeded for every new profile (infrastructure shortcuts)
