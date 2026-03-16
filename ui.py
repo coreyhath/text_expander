@@ -315,8 +315,18 @@ class SettingsDialog(tk.Toplevel):
                    command=self._refresh_models).grid(row=2, column=1, sticky="w",
                                                       padx=12, pady=(0, 4))
 
+        # Cover letter options
+        ttk.Separator(self, orient="horizontal").grid(row=3, column=0, columnspan=3,
+                                                      sticky="ew", padx=12, pady=(4, 0))
+        ttk.Label(self, text="Cover Letter:").grid(row=4, column=0, sticky="w", padx=12, pady=6)
+        self._open_finder_var = tk.BooleanVar(
+            value=db.get_setting("COVERLETTER_OPEN_FINDER", "1") == "1"
+        )
+        ttk.Checkbutton(self, text="Open Finder after generation",
+                        variable=self._open_finder_var).grid(row=4, column=1, sticky="w", padx=12)
+
         btn_frame = ttk.Frame(self)
-        btn_frame.grid(row=3, column=0, columnspan=3, pady=10)
+        btn_frame.grid(row=5, column=0, columnspan=3, pady=10)
         ttk.Button(btn_frame, text="Save",   command=self._save).pack(side="left", padx=4)
         ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="left", padx=4)
 
@@ -365,6 +375,7 @@ class SettingsDialog(tk.Toplevel):
     def _save(self):
         db.set_setting("OPENAI_API_KEY", self._key_var.get().strip())
         db.set_setting("OPENAI_MODEL", self._model_var.get().strip() or DEFAULT_MODEL)
+        db.set_setting("COVERLETTER_OPEN_FINDER", "1" if self._open_finder_var.get() else "0")
         self.destroy()
 
 

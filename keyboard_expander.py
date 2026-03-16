@@ -233,7 +233,8 @@ def _do_gen_cover_letter_inner(trigger: str, prompt_template: str) -> None:
         pyperclip.copy(text)
 
         _notify_macos_banner("Cover Letter Generated", f"Saved as {filename} · Copied to clipboard")
-        subprocess.run(["open", str(Path.home() / "Downloads")], check=False)
+        if db.get_setting("COVERLETTER_OPEN_FINDER", "1") == "1":
+            subprocess.run(["open", str(Path.home() / "Downloads")], check=False)
     except Exception as e:
         _notify_macos("AutoFiller Error", str(e))
 
