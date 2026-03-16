@@ -67,10 +67,21 @@ def _human_type(text: str) -> None:
 
 
 def _notify_macos(title: str, message: str) -> None:
+    """Show a blocking alert (for errors)."""
     safe_title = title.replace('"', '\\"')
     safe_msg = message.replace('"', '\\"')
     subprocess.run(
         ["osascript", "-e", f'display alert "{safe_title}" message "{safe_msg}"'],
+        check=False,
+    )
+
+
+def _notify_macos_banner(title: str, message: str) -> None:
+    """Show a system notification banner that auto-dismisses."""
+    safe_title = title.replace('"', '\\"')
+    safe_msg = message.replace('"', '\\"')
+    subprocess.run(
+        ["osascript", "-e", f'display notification "{safe_msg}" with title "{safe_title}"'],
         check=False,
     )
 
@@ -216,8 +227,9 @@ def _do_gen_cover_letter_inner(trigger: str, prompt_template: str) -> None:
         filepath = Path.home() / "Downloads" / filename
         filepath.unlink(missing_ok=True)
         _save_pdf(text, str(filepath))
+        pyperclip.copy(text)
 
-        _notify_macos("Cover Letter Generated", f"Saved as {filename}")
+        _notify_macos_banner("Cover Letter Generated", f"Saved as {filename} · Copied to clipboard")
         subprocess.run(["open", str(Path.home() / "Downloads")], check=False)
     except Exception as e:
         _notify_macos("AutoFiller Error", str(e))
