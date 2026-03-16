@@ -215,6 +215,8 @@ def _do_gen_cover_letter_inner(trigger: str, prompt_template: str) -> None:
         _notify_macos("AutoFiller Error", "OPENAI_API_KEY not set")
         return
 
+    _notify_macos_banner("Cover Letter", "Generating...")
+
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
