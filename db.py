@@ -19,6 +19,7 @@ COVER_LETTER_DEFAULT_PROMPT = (
     "Be specific about why this candidate is a strong fit. "
     "Keep it to one page. Output only the letter text, no extra commentary."
     "Don't use '—' character."
+    "Don't use placeholder if you don't know the information, leave it as blank."
 )
 
 # Seeded for every new profile (infrastructure shortcuts)
