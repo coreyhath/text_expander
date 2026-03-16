@@ -18,8 +18,9 @@ COVER_LETTER_DEFAULT_PROMPT = (
     "Use standard business letter format and include today's date at the top. "
     "Be specific about why this candidate is a strong fit. "
     "Keep it to one page. Output only the letter text, no extra commentary."
-    "Don't use '—' character."
-    "Don't use placeholder if you don't know the information, leave it as blank."
+    "Don't use '—' or other hyphen-similar character."
+    "Don't add company related placeholder like [Recipient Name], [Company Name], [Company Address], [City, State, Zip Code]."
+    "After contact information, start with 'Dear Hiring Manager,' if you don't know the recipient's name, and end with a professional closing like 'Sincerely,' followed by a signature line with the candidate's name."
 )
 
 # Seeded for every new profile (infrastructure shortcuts)

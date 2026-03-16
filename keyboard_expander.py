@@ -77,7 +77,28 @@ def _notify_macos(title: str, message: str) -> None:
     )
 
 
+_PDF_CHAR_MAP = {
+    "\u2014": "-",    # em dash
+    "\u2013": "-",    # en dash
+    "\u2012": "-",    # figure dash
+    "\u2010": "-",    # hyphen
+    "\u2011": "-",    # non-breaking hyphen
+    "\u2018": "'",    # left single quote
+    "\u2019": "'",    # right single quote
+    "\u201a": ",",    # single low quote
+    "\u201c": '"',    # left double quote
+    "\u201d": '"',    # right double quote
+    "\u2026": "...",  # ellipsis
+    "\u00a0": " ",    # non-breaking space
+    "\u2022": "*",    # bullet
+}
+
+
 def _save_pdf(text: str, filepath: str) -> None:
+    for char, replacement in _PDF_CHAR_MAP.items():
+        text = text.replace(char, replacement)
+    text = text.encode("latin-1", errors="replace").decode("latin-1")
+
     from fpdf import FPDF
     pdf = FPDF()
     pdf.set_margins(25, 25, 25)
@@ -169,6 +190,7 @@ def _do_gen_cover_letter(trigger: str, prompt_template: str) -> None:
 
         filename = "coverletter.pdf"
         filepath = Path.home() / "Downloads" / filename
+        filepath.unlink(missing_ok=True)
         _save_pdf(text, str(filepath))
 
         _notify_macos("Cover Letter Generated", f"Saved as {filename}")
