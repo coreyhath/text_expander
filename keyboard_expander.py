@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Keyboard text expander with LLM integration and profile support.
-Requires: pip install pynput pyperclip openai python-dotenv
+Requires: pip install pynput pyperclip openai python-dotenv fpdf2
 
 Usage:
   python keyboard_expander.py         # daemon only
@@ -12,6 +12,9 @@ import os
 import sys
 import time
 import threading
+import subprocess
+from datetime import datetime
+from pathlib import Path
 import pyperclip
 from dotenv import load_dotenv
 from pynput import keyboard
@@ -53,12 +56,44 @@ def on_profile_changed() -> None:
 
 # ── action handlers ──────────────────────────────────────────────────────────
 
+def _paste_text(text: str) -> None:
+    """Paste via clipboard + Cmd+V — avoids macOS CGEventSource timing bugs."""
+    original = pyperclip.paste()
+    pyperclip.copy(text)
+    time.sleep(0.05)
+    _controller.press(Key.cmd)
+    _controller.tap('v')
+    _controller.release(Key.cmd)
+    time.sleep(0.1)
+    pyperclip.copy(original)
+
+
+def _notify_macos(title: str, message: str) -> None:
+    safe_title = title.replace('"', '\\"')
+    safe_msg = message.replace('"', '\\"')
+    subprocess.run(
+        ["osascript", "-e", f'display alert "{safe_title}" message "{safe_msg}"'],
+        check=False,
+    )
+
+
+def _save_pdf(text: str, filepath: str) -> None:
+    from fpdf import FPDF
+    pdf = FPDF()
+    pdf.set_margins(25, 25, 25)
+    pdf.set_auto_page_break(auto=True, margin=25)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=11)
+    pdf.multi_cell(0, 6, text)
+    pdf.output(filepath)
+
+
 def _do_expand(trigger: str, expansion: str) -> None:
     time.sleep(0.05)
     for _ in range(len(trigger)):
         _controller.tap(Key.backspace)
         time.sleep(0.02)
-    _controller.type(expansion)
+    _paste_text(expansion)
 
 
 def _do_store_clipboard(trigger: str, var_name: str) -> None:
@@ -85,7 +120,7 @@ def _do_llm_query(trigger: str, prompt_template: str) -> None:
 
     api_key = db.get_setting("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        _controller.type("[ERROR: OPENAI_API_KEY not set]")
+        _paste_text("[ERROR: OPENAI_API_KEY not set]")
         return
 
     try:
@@ -96,13 +131,50 @@ def _do_llm_query(trigger: str, prompt_template: str) -> None:
             messages=[{"role": "user", "content": prompt}],
             stream=True,
         )
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                _controller.type(delta)
-                time.sleep(0.005)
+        # Collect full response before pasting — avoids dropped spaces from
+        # rapid pynput Controller.type() calls on macOS.
+        response = "".join(
+            chunk.choices[0].delta.content or "" for chunk in stream
+        )
+        if response:
+            _paste_text(response)
     except Exception as e:
-        _controller.type(f"[LLM ERROR: {e}]")
+        _paste_text(f"[LLM ERROR: {e}]")
+
+
+def _do_gen_cover_letter(trigger: str, prompt_template: str) -> None:
+    prompt = prompt_template
+    for var_name, value in _session.items():
+        prompt = prompt.replace(f"{{{{{var_name}}}}}", value)
+
+    time.sleep(0.05)
+    for _ in range(len(trigger)):
+        _controller.tap(Key.backspace)
+        time.sleep(0.02)
+
+    api_key = db.get_setting("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        _notify_macos("AutoFiller Error", "OPENAI_API_KEY not set")
+        return
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model=db.get_setting("OPENAI_MODEL", "gpt-4o-mini"),
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.choices[0].message.content or ""
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"cover_letter_{timestamp}.pdf"
+        filepath = Path.home() / "Downloads" / filename
+        _save_pdf(text, str(filepath))
+
+        _notify_macos("Cover Letter Generated", f"Saved as {filename}")
+        subprocess.run(["open", str(Path.home() / "Downloads")], check=False)
+    except Exception as e:
+        _notify_macos("AutoFiller Error", str(e))
 
 
 def _do_show_ui(trigger: str) -> None:
@@ -172,6 +244,8 @@ def _on_press(key):
             t = threading.Thread(target=_do_store_clipboard, args=(match, expansion), daemon=True)
         elif action == "llm_query":
             t = threading.Thread(target=_do_llm_query, args=(match, expansion), daemon=True)
+        elif action == "gen_cover_letter":
+            t = threading.Thread(target=_do_gen_cover_letter, args=(match, expansion), daemon=True)
         elif action == "show_ui":
             t = threading.Thread(target=_do_show_ui, args=(match,), daemon=True)
         elif action == "switch_profile":

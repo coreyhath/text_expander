@@ -10,13 +10,22 @@ LLM_QUERY_DEFAULT_PROMPT = (
     "Respond with only the answer to this question in 1~2 sentence streamlined: <<<{{clipboard}}>>>"
 )
 
+COVER_LETTER_DEFAULT_PROMPT = (
+    "Here is a resume:\n<<<{{resume}}>>>\n\n"
+    "Here is a job description:\n<<<{{job_description}}>>>\n\n"
+    "Write a professional, tailored cover letter for this position. "
+    "Use standard business letter format. Be specific about why this candidate is a strong fit. "
+    "Keep it to one page. Output only the letter text, no extra commentary."
+)
+
 # Seeded for every new profile (infrastructure shortcuts)
 _SYSTEM_ROWS = [
-    ("jjj", "job_description",        "store_clipboard"),
-    ("rrr", "resume",                 "store_clipboard"),
-    ("qqq", LLM_QUERY_DEFAULT_PROMPT, "llm_query"),
-    ("uuu", "",                       "show_ui"),
-    ("///", "",                       "switch_profile"),
+    ("jjj", "job_description",           "store_clipboard"),
+    ("rrr", "resume",                    "store_clipboard"),
+    ("qqq", LLM_QUERY_DEFAULT_PROMPT,    "llm_query"),
+    ("ccc", COVER_LETTER_DEFAULT_PROMPT, "gen_cover_letter"),
+    ("uuu", "",                          "show_ui"),
+    ("///", "",                          "switch_profile"),
 ]
 
 # Seeded only for the initial Default profile
@@ -58,9 +67,12 @@ def init_db() -> None:
         """)
 
         # Ensure Default profile exists
-        if conn.execute("SELECT COUNT(*) FROM profiles").fetchone()[0] == 0:
-            conn.execute("INSERT INTO profiles (name) VALUES ('Default')")
-        default_id = conn.execute("SELECT id FROM profiles WHERE name='Default'").fetchone()[0]
+        conn.execute("INSERT OR IGNORE INTO profiles (name) VALUES ('Default')")
+        row = conn.execute("SELECT id FROM profiles WHERE name='Default'").fetchone()
+        if row is None:
+            # Fallback: use the first available profile as the default anchor
+            row = conn.execute("SELECT id FROM profiles ORDER BY id LIMIT 1").fetchone()
+        default_id = row[0]
 
         # Ensure current_profile_id setting exists
         if not conn.execute("SELECT 1 FROM settings WHERE key='current_profile_id'").fetchone():

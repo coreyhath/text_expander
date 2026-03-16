@@ -4,27 +4,30 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import db
 
-ACTIONS = ["expand", "store_clipboard", "llm_query", "show_ui", "switch_profile"]
+ACTIONS = ["expand", "store_clipboard", "llm_query", "gen_cover_letter", "show_ui", "switch_profile"]
 
 ACTION_LABELS = {
-    "expand":          "Expand",
-    "store_clipboard": "Store Clipboard",
-    "llm_query":       "LLM Query",
-    "show_ui":         "Show UI",
-    "switch_profile":  "Switch Profile",
+    "expand":            "Expand",
+    "store_clipboard":   "Store Clipboard",
+    "llm_query":         "LLM Query",
+    "gen_cover_letter":  "Generate Cover Letter",
+    "show_ui":           "Show UI",
+    "switch_profile":    "Switch Profile",
 }
 
 EXPANSION_LABELS = {
-    "expand":          "Expansion text:",
-    "store_clipboard": "Variable name:",
-    "llm_query":       "Prompt template:",
-    "show_ui":         None,
-    "switch_profile":  None,
+    "expand":            "Expansion text:",
+    "store_clipboard":   "Variable name:",
+    "llm_query":         "Prompt template:",
+    "gen_cover_letter":  "Prompt template:",
+    "show_ui":           None,
+    "switch_profile":    None,
 }
 
 EXPANSION_HINTS = {
-    "llm_query":       "Use {{clipboard}}, {{job_description}}, {{resume}}, etc.",
-    "store_clipboard": "e.g. job_description, resume, …",
+    "llm_query":         "Use {{clipboard}}, {{job_description}}, {{resume}}, etc.",
+    "gen_cover_letter":  "Use {{resume}}, {{job_description}}, etc. Result saved as PDF in ~/Downloads.",
+    "store_clipboard":   "e.g. job_description, resume, …",
 }
 
 _LABEL_TO_ACTION = {v: k for k, v in ACTION_LABELS.items()}
