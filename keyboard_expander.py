@@ -34,6 +34,8 @@ _triggers_lock = threading.Lock()
 _session: dict[str, str] = {}
 _show_ui_callback = None
 _switch_profile_callback = None
+_llm_busy = False
+_llm_busy_lock = threading.Lock()
 
 
 def reload_triggers() -> None:
@@ -125,6 +127,19 @@ def _do_store_clipboard(trigger: str, var_name: str) -> None:
 
 
 def _do_llm_query(trigger: str, prompt_template: str) -> None:
+    global _llm_busy
+    with _llm_busy_lock:
+        if _llm_busy:
+            return
+        _llm_busy = True
+    try:
+        _do_llm_query_inner(trigger, prompt_template)
+    finally:
+        with _llm_busy_lock:
+            _llm_busy = False
+
+
+def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
     clipboard_text = pyperclip.paste()
     prompt = prompt_template.replace("{{clipboard}}", clipboard_text)
     for var_name, value in _session.items():
@@ -160,6 +175,19 @@ def _do_llm_query(trigger: str, prompt_template: str) -> None:
 
 
 def _do_gen_cover_letter(trigger: str, prompt_template: str) -> None:
+    global _llm_busy
+    with _llm_busy_lock:
+        if _llm_busy:
+            return
+        _llm_busy = True
+    try:
+        _do_gen_cover_letter_inner(trigger, prompt_template)
+    finally:
+        with _llm_busy_lock:
+            _llm_busy = False
+
+
+def _do_gen_cover_letter_inner(trigger: str, prompt_template: str) -> None:
     today = datetime.now().strftime("%B %d, %Y")
     prompt = prompt_template.replace("{{date}}", today)
     for var_name, value in _session.items():
