@@ -134,6 +134,7 @@ def _do_store_clipboard(trigger: str, var_name: str) -> None:
     for _ in range(len(trigger)):
         _controller.tap(Key.backspace)
         time.sleep(0.02)
+    _notify_macos_banner(f"Stored: {var_name}", f"{len(text)} chars saved to session")
     print(f"[autofiller] stored {len(text)} chars → session['{var_name}']")
 
 
