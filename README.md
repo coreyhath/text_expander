@@ -269,6 +269,8 @@ Your prompt template can include:
 
 Great for: interview prep, cover letter drafting, email replies, content generation, summarization.
 
+Typing speed and style are configurable in **Settings**. You can keep the default human-like typing emulation on, or disable it for faster direct typing.
+
 ---
 
 ### 4. Show UI
@@ -490,7 +492,8 @@ brew install python-tk@3.13   # replace 3.13 with your Python version
 
 **Expansion types the wrong characters / garbled output**
 - This can happen if the delay between keystrokes is too short on a slow system
-- The 20ms inter-keystroke delay is set in `_do_expand` in `keyboard_expander.py`
+- Try toggling typing emulation in Settings
+- Backspace timing is set in `_do_expand` in `keyboard_expander.py`
 
 **The app crashes on startup**
 - Run `python keyboard_expander.py --ui` from the terminal to see the full error

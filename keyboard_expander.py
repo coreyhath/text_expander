@@ -66,6 +66,14 @@ def _human_type(text: str) -> None:
         time.sleep(random.uniform(0.04, 0.09))
 
 
+def _type_output(text: str) -> None:
+    """Type output using either human-like emulation or direct typing."""
+    if db.get_setting("TYPING_EMULATION_ENABLED", "1") == "1":
+        _human_type(text)
+    else:
+        _controller.type(text)
+
+
 def _notify_macos(title: str, message: str) -> None:
     """Show a blocking alert (for errors)."""
     safe_title = title.replace('"', '\\"')
@@ -123,7 +131,7 @@ def _do_expand(trigger: str, expansion: str) -> None:
     for _ in range(len(trigger)):
         _controller.tap(Key.backspace)
         time.sleep(0.02)
-    _human_type(expansion)
+    _type_output(expansion)
 
 
 def _do_store_clipboard(trigger: str, var_name: str) -> None:
@@ -164,7 +172,7 @@ def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
 
     api_key = db.get_setting("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        _human_type("[ERROR: OPENAI_API_KEY not set]")
+        _type_output("[ERROR: OPENAI_API_KEY not set]")
         return
 
     try:
@@ -181,9 +189,9 @@ def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
             chunk.choices[0].delta.content or "" for chunk in stream
         )
         if response:
-            _human_type(response)
+            _type_output(response)
     except Exception as e:
-        _human_type(f"[LLM ERROR: {e}]")
+        _type_output(f"[LLM ERROR: {e}]")
 
 
 def _do_gen_cover_letter(trigger: str, prompt_template: str) -> None:
