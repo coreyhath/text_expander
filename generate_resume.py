@@ -20,32 +20,35 @@ class ResumePDF(FPDF):
         links = " | ".join(self.data.get("links", []))
         if links:
             self.cell(0, 5, links, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
-        self.ln(10)
-
-    def section_title(self, title):
-        self.set_font("helvetica", "B", 12)
-        self.set_fill_color(240, 240, 240)
-        self.cell(0, 8, title.upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
         self.ln(2)
 
-    def entry(self, title, subtitle, date, description):
+    def section_title(self, title):
+        self.ln(4)
+        self.set_font("helvetica", "B", 12)
+        self.set_fill_color(240, 240, 240)
+        self.cell(0, 6, title.upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
+        self.ln(1)
+
+    def entry(self, title, subtitle, date, location, description):
         self.set_font("helvetica", "B", 11)
         self.cell(140, 6, title, align="L")
         self.set_font("helvetica", "I", 10)
         self.cell(0, 6, date, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="R")
         self.set_font("helvetica", "B", 10)
-        self.cell(0, 6, subtitle, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.cell(140, 6, subtitle, align="L")
+        self.set_font("helvetica", "I", 10)
+        self.cell(0, 6, location, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="R")
         self.set_font("helvetica", "", 10)
         for bullet in description:
             # handle bullets properly and replace special characters
             bullet = bullet.replace("\u2013", "-").replace("\u2014", "-")
-            self.multi_cell(0, 5, f"- {bullet}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        self.ln(4)
+            self.multi_cell(0, 4, f"- {bullet}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.ln(1)
 
 def generate_resume_pdf(data: dict, filepath: str):
     pdf = ResumePDF(data)
-    pdf.set_margins(25, 25, 25)
-    pdf.set_auto_page_break(auto=True, margin=25)
+    pdf.set_margins(12, 12, 12)
+    pdf.set_auto_page_break(auto=True, margin=12)
     pdf.add_page()
     
     pdf.write_header()
@@ -55,8 +58,8 @@ def generate_resume_pdf(data: dict, filepath: str):
         pdf.section_title("Summary")
         pdf.set_font("helvetica", "", 10)
         summary = data["summary"].replace("\u2013", "-").replace("\u2014", "-")
-        pdf.multi_cell(0, 5, summary, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.ln(4)
+        pdf.multi_cell(0, 4, summary, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(1)
 
     # Skills Section
     if data.get("skills"):
@@ -83,6 +86,7 @@ def generate_resume_pdf(data: dict, filepath: str):
                 exp.get("title", ""),
                 exp.get("company", ""),
                 exp.get("date", ""),
+                exp.get("location", ""),
                 exp.get("description", [])
             )
 
@@ -94,6 +98,7 @@ def generate_resume_pdf(data: dict, filepath: str):
                 edu.get("degree", ""),
                 edu.get("institution", ""),
                 edu.get("date", ""),
+                edu.get("location", ""),
                 []
             )
 
