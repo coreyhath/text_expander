@@ -65,10 +65,8 @@ def generate_resume_pdf(data: dict, filepath: str):
         pdf.set_font("helvetica", "B", 10)
         categories = []
         for skill in data["skills"]:
-            cat = skill.get("category", "")
-            if cat and not cat.endswith(":"):
-                cat += ":"
-            categories.append(cat)
+            cat = skill.get("category", "").strip().rstrip(":")
+            categories.append(cat + ":" if cat else "")
         max_cat_w = max((pdf.get_string_width(c) for c in categories), default=0) + 4
         for skill, category in zip(data["skills"], categories):
             pdf.set_font("helvetica", "B", 10)
@@ -96,7 +94,7 @@ def generate_resume_pdf(data: dict, filepath: str):
                 edu.get("degree", ""),
                 edu.get("institution", ""),
                 edu.get("date", ""),
-                edu.get("details", [])
+                []
             )
 
     pdf.output(filepath)

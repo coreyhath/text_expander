@@ -300,9 +300,11 @@ def _do_gen_resume_inner(trigger: str, prompt_template: str) -> None:
             '    {"degree": "Degree", "institution": "University Name", "date": "Date Range", "details": ["Detail 1"]}\n'
             '  ],\n'
             '  "skills": [\n'
-            '    {"category": "Skill Category:", "items": "Skill 1, Skill 2"}\n'
+            '    {"category": "Lang", "items": "Skill 1, Skill 2"}\n'
             '  ]\n'
-            "}"
+            "}\n\n"
+            "For the 'category' field in skills: use a single short word, no compound names with 'and' or '&'. "
+            "Max 12 characters. Examples: Lang, Frameworks, Tools, DB, Cloud, OS, DevOps, ML, Infra, QA, Mobile, Web, Security."
         )
 
         response = client.chat.completions.create(
