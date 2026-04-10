@@ -278,21 +278,57 @@ def _do_gen_resume_inner(trigger: str, prompt_template: str) -> None:
     _notify_macos_banner("Resume", "Generating...")
 
     try:
+        import json
         from openai import OpenAI
+        from generate_resume import generate_resume_pdf
+
         client = OpenAI(api_key=api_key)
+
+        system_prompt = (
+            "You are a professional resume generator. "
+            "Output your response strictly as a JSON object matching the following structure. "
+            "DO NOT include markdown block characters like ```json or ```. Just the raw JSON.\n\n"
+            "{\n"
+            '  "name": "Applicant Name",\n'
+            '  "contact": ["City, State", "Phone", "Email"],\n'
+            '  "links": ["LinkedIn", "GitHub", "Portfolio"],\n'
+            '  "summary": "Brief professional summary.",\n'
+            '  "experience": [\n'
+            '    {"title": "Job Title", "company": "Company Name", "date": "Date Range", "description": ["Bullet point 1", "Bullet point 2"]}\n'
+            '  ],\n'
+            '  "education": [\n'
+            '    {"degree": "Degree", "institution": "University Name", "date": "Date Range", "details": ["Detail 1"]}\n'
+            '  ],\n'
+            '  "skills": [\n'
+            '    {"category": "Skill Category:", "items": "Skill 1, Skill 2"}\n'
+            '  ]\n'
+            "}"
+        )
+
         response = client.chat.completions.create(
             model=db.get_setting("OPENAI_MODEL", "gpt-4o-mini"),
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
         )
         text = response.choices[0].message.content or ""
+
+        try:
+            resume_data = json.loads(text)
+        except json.JSONDecodeError as e:
+            _notify_macos("AutoFiller Error", f"Failed to parse resume JSON: {e}")
+            return
 
         filename = "resume_generated.pdf"
         filepath = Path.home() / "Downloads" / filename
         filepath.unlink(missing_ok=True)
-        _save_pdf(text, str(filepath))
+
+        generate_resume_pdf(resume_data, str(filepath))
         pyperclip.copy(text)
 
-        _notify_macos_banner("Resume Generated", f"Saved as {filename} · Copied to clipboard")
+        _notify_macos_banner("Resume Generated", f"Saved as {filename} · JSON Copied to clipboard")
         if db.get_setting("RESUME_OPEN_FINDER", "1") == "1":
             subprocess.run(["open", str(Path.home() / "Downloads")], check=False)
     except Exception as e:
