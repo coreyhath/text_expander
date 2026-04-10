@@ -58,6 +58,25 @@ def generate_resume_pdf(data: dict, filepath: str):
         pdf.multi_cell(0, 5, summary, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(4)
 
+    # Skills Section
+    if data.get("skills"):
+        pdf.section_title("Skills")
+        # Pre-compute max category width for uniform alignment
+        pdf.set_font("helvetica", "B", 10)
+        categories = []
+        for skill in data["skills"]:
+            cat = skill.get("category", "")
+            if cat and not cat.endswith(":"):
+                cat += ":"
+            categories.append(cat)
+        max_cat_w = max((pdf.get_string_width(c) for c in categories), default=0) + 4
+        for skill, category in zip(data["skills"], categories):
+            pdf.set_font("helvetica", "B", 10)
+            pdf.cell(max_cat_w, 6, category)
+            pdf.set_font("helvetica", "", 10)
+            remaining_w = pdf.w - pdf.r_margin - pdf.get_x()
+            pdf.multi_cell(remaining_w, 6, skill.get("items", ""), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
     # Experience Section
     if data.get("experience"):
         pdf.section_title("Experience")
@@ -79,20 +98,6 @@ def generate_resume_pdf(data: dict, filepath: str):
                 edu.get("date", ""),
                 edu.get("details", [])
             )
-
-    # Skills Section
-    if data.get("skills"):
-        pdf.section_title("Skills")
-        for skill in data["skills"]:
-            pdf.set_font("helvetica", "B", 10)
-            category = skill.get("category", "")
-            if category and not category.endswith(":"):
-                category += ":"
-            cat_w = pdf.get_string_width(category) + 4
-            pdf.cell(cat_w, 6, category)
-            pdf.set_font("helvetica", "", 10)
-            remaining_w = pdf.w - pdf.r_margin - pdf.get_x()
-            pdf.multi_cell(remaining_w, 6, skill.get("items", ""), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.output(filepath)
 
