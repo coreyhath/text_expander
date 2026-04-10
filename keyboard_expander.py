@@ -247,6 +247,58 @@ def _do_gen_cover_letter_inner(trigger: str, prompt_template: str) -> None:
         _notify_macos("AutoFiller Error", str(e))
 
 
+def _do_gen_resume(trigger: str, prompt_template: str) -> None:
+    global _llm_busy
+    with _llm_busy_lock:
+        if _llm_busy:
+            return
+        _llm_busy = True
+    try:
+        _do_gen_resume_inner(trigger, prompt_template)
+    finally:
+        with _llm_busy_lock:
+            _llm_busy = False
+
+
+def _do_gen_resume_inner(trigger: str, prompt_template: str) -> None:
+    prompt = prompt_template
+    for var_name, value in _session.items():
+        prompt = prompt.replace(f"{{{{{var_name}}}}}", value)
+
+    time.sleep(0.05)
+    for _ in range(len(trigger)):
+        _controller.tap(Key.backspace)
+        time.sleep(0.02)
+
+    api_key = db.get_setting("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        _notify_macos("AutoFiller Error", "OPENAI_API_KEY not set")
+        return
+
+    _notify_macos_banner("Resume", "Generating...")
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model=db.get_setting("OPENAI_MODEL", "gpt-4o-mini"),
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.choices[0].message.content or ""
+
+        filename = "resume_generated.pdf"
+        filepath = Path.home() / "Downloads" / filename
+        filepath.unlink(missing_ok=True)
+        _save_pdf(text, str(filepath))
+        pyperclip.copy(text)
+
+        _notify_macos_banner("Resume Generated", f"Saved as {filename} · Copied to clipboard")
+        if db.get_setting("RESUME_OPEN_FINDER", "1") == "1":
+            subprocess.run(["open", str(Path.home() / "Downloads")], check=False)
+    except Exception as e:
+        _notify_macos("AutoFiller Error", str(e))
+
+
 def _do_show_ui(trigger: str) -> None:
     time.sleep(0.05)
     for _ in range(len(trigger)):
@@ -316,6 +368,8 @@ def _on_press(key):
             t = threading.Thread(target=_do_llm_query, args=(match, expansion), daemon=True)
         elif action == "gen_cover_letter":
             t = threading.Thread(target=_do_gen_cover_letter, args=(match, expansion), daemon=True)
+        elif action == "gen_resume":
+            t = threading.Thread(target=_do_gen_resume, args=(match, expansion), daemon=True)
         elif action == "show_ui":
             t = threading.Thread(target=_do_show_ui, args=(match,), daemon=True)
         elif action == "switch_profile":

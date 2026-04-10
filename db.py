@@ -23,12 +23,22 @@ COVER_LETTER_DEFAULT_PROMPT = (
     "After contact information, start with 'Dear Hiring Manager,' if you don't know the recipient's name, and end with a professional closing like 'Sincerely,' followed by a signature line with the candidate's name."
 )
 
+RESUME_DEFAULT_PROMPT = (
+    "Here is my current resume:\n<<<{{resume}}>>>\n\n"
+    "Here is a job description:\n<<<{{job_description}}>>>\n\n"
+    "Generate a professional, tailored resume for this specific position. "
+    "Focus on highlighting relevant skills and experiences. "
+    "Keep it to one or two pages. Output only the resume text, no extra commentary."
+    "Don't use '—' or other hyphen-similar character."
+)
+
 # Seeded for every new profile (infrastructure shortcuts)
 _SYSTEM_ROWS = [
     ("jjj", "job_description",           "store_clipboard"),
     ("rrr", "resume",                    "store_clipboard"),
     ("qqq", LLM_QUERY_DEFAULT_PROMPT,    "llm_query"),
     ("ccc", COVER_LETTER_DEFAULT_PROMPT, "gen_cover_letter"),
+    ("rrr_gen", RESUME_DEFAULT_PROMPT,    "gen_resume"),
     ("uuu", "",                          "show_ui"),
     ("///", "",                          "switch_profile"),
 ]

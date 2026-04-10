@@ -4,13 +4,14 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import db
 
-ACTIONS = ["expand", "store_clipboard", "llm_query", "gen_cover_letter", "show_ui", "switch_profile"]
+ACTIONS = ["expand", "store_clipboard", "llm_query", "gen_cover_letter", "gen_resume", "show_ui", "switch_profile"]
 
 ACTION_LABELS = {
     "expand":            "Expand",
     "store_clipboard":   "Store Clipboard",
     "llm_query":         "LLM Query",
     "gen_cover_letter":  "Generate Cover Letter",
+    "gen_resume":        "Generate Resume",
     "show_ui":           "Show UI",
     "switch_profile":    "Switch Profile",
 }
@@ -20,6 +21,7 @@ EXPANSION_LABELS = {
     "store_clipboard":   "Variable name:",
     "llm_query":         "Prompt template:",
     "gen_cover_letter":  "Prompt template:",
+    "gen_resume":        "Prompt template:",
     "show_ui":           None,
     "switch_profile":    None,
 }
@@ -27,6 +29,7 @@ EXPANSION_LABELS = {
 EXPANSION_HINTS = {
     "llm_query":         "Use {{clipboard}}, {{job_description}}, {{resume}}, etc.",
     "gen_cover_letter":  "Use {{resume}}, {{job_description}}, {{date}}, etc. Result saved as PDF in ~/Downloads.",
+    "gen_resume":        "Use {{resume}}, {{job_description}}, etc. Result saved as PDF in ~/Downloads.",
     "store_clipboard":   "e.g. job_description, resume, …",
 }
 
@@ -334,8 +337,15 @@ class SettingsDialog(tk.Toplevel):
         ttk.Checkbutton(self, text="Open Finder after generation",
                         variable=self._open_finder_var).grid(row=5, column=1, sticky="w", padx=12)
 
+        ttk.Label(self, text="Resume:").grid(row=6, column=0, sticky="w", padx=12, pady=6)
+        self._open_finder_resume_var = tk.BooleanVar(
+            value=db.get_setting("RESUME_OPEN_FINDER", "1") == "1"
+        )
+        ttk.Checkbutton(self, text="Open Finder after generation",
+                        variable=self._open_finder_resume_var).grid(row=6, column=1, sticky="w", padx=12)
+
         btn_frame = ttk.Frame(self)
-        btn_frame.grid(row=6, column=0, columnspan=3, pady=10)
+        btn_frame.grid(row=7, column=0, columnspan=3, pady=10)
         ttk.Button(btn_frame, text="Save",   command=self._save).pack(side="left", padx=4)
         ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="left", padx=4)
 
@@ -386,6 +396,7 @@ class SettingsDialog(tk.Toplevel):
         db.set_setting("OPENAI_MODEL", self._model_var.get().strip() or DEFAULT_MODEL)
         db.set_setting("TYPING_EMULATION_ENABLED", "1" if self._typing_emulation_var.get() else "0")
         db.set_setting("COVERLETTER_OPEN_FINDER", "1" if self._open_finder_var.get() else "0")
+        db.set_setting("RESUME_OPEN_FINDER", "1" if self._open_finder_resume_var.get() else "0")
         self.destroy()
 
 
