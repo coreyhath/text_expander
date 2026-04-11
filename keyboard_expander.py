@@ -161,9 +161,6 @@ def _do_llm_query(trigger: str, prompt_template: str) -> None:
 
 def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
     clipboard_text = pyperclip.paste()
-    prompt = prompt_template.replace("{{clipboard}}", clipboard_text)
-    for var_name, value in _session.items():
-        prompt = prompt.replace(f"{{{{{var_name}}}}}", value)
 
     time.sleep(0.05)
     for _ in range(len(trigger)):
@@ -175,19 +172,35 @@ def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
         _type_output("[ERROR: OPENAI_API_KEY not set]")
         return
 
+    model = db.get_setting("OPENAI_MODEL", "gpt-4o-mini")
+
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        stream = client.chat.completions.create(
-            model=db.get_setting("OPENAI_MODEL", "gpt-4o-mini"),
-            messages=[{"role": "user", "content": prompt}],
-            stream=True,
-        )
-        # Collect full response before pasting — avoids dropped spaces from
-        # rapid pynput Controller.type() calls on macOS.
-        response = "".join(
-            chunk.choices[0].delta.content or "" for chunk in stream
-        )
+        # Use the humanizer pipeline when resume + job_description are in session
+        if "resume" in _session and "job_description" in _session:
+            from job_assistant import answer_question
+            response = answer_question(
+                question=clipboard_text,
+                resume=_session["resume"],
+                job_description=_session["job_description"],
+                api_key=api_key,
+                model=model,
+                temperature=0.95,
+            )
+        else:
+            # Fallback: raw prompt template (no humanizer context available)
+            prompt = prompt_template.replace("{{clipboard}}", clipboard_text)
+            for var_name, value in _session.items():
+                prompt = prompt.replace(f"{{{{{var_name}}}}}", value)
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key)
+            stream = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+            )
+            response = "".join(
+                chunk.choices[0].delta.content or "" for chunk in stream
+            )
         if response:
             _type_output(response)
     except Exception as e:
@@ -208,11 +221,6 @@ def _do_gen_cover_letter(trigger: str, prompt_template: str) -> None:
 
 
 def _do_gen_cover_letter_inner(trigger: str, prompt_template: str) -> None:
-    today = datetime.now().strftime("%B %d, %Y")
-    prompt = prompt_template.replace("{{date}}", today)
-    for var_name, value in _session.items():
-        prompt = prompt.replace(f"{{{{{var_name}}}}}", value)
-
     time.sleep(0.05)
     for _ in range(len(trigger)):
         _controller.tap(Key.backspace)
@@ -223,16 +231,18 @@ def _do_gen_cover_letter_inner(trigger: str, prompt_template: str) -> None:
         _notify_macos("AutoFiller Error", "OPENAI_API_KEY not set")
         return
 
-    _notify_macos_banner("Cover Letter", "Generating...")
+    model = db.get_setting("OPENAI_MODEL", "gpt-4o-mini")
+    _notify_macos_banner("Cover Letter", "Generating (humanized)...")
 
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
-            model=db.get_setting("OPENAI_MODEL", "gpt-4o-mini"),
-            messages=[{"role": "user", "content": prompt}],
+        from job_assistant import generate_cover_letter
+        text = generate_cover_letter(
+            resume=_session.get("resume", ""),
+            job_description=_session.get("job_description", ""),
+            api_key=api_key,
+            model=model,
+            temperature=0.95,
         )
-        text = response.choices[0].message.content or ""
 
         filename = "coverletter.pdf"
         filepath = Path.home() / "Downloads" / filename
@@ -261,10 +271,6 @@ def _do_gen_resume(trigger: str, prompt_template: str) -> None:
 
 
 def _do_gen_resume_inner(trigger: str, prompt_template: str) -> None:
-    prompt = prompt_template
-    for var_name, value in _session.items():
-        prompt = prompt.replace(f"{{{{{var_name}}}}}", value)
-
     time.sleep(0.05)
     for _ in range(len(trigger)):
         _controller.tap(Key.backspace)
@@ -275,60 +281,28 @@ def _do_gen_resume_inner(trigger: str, prompt_template: str) -> None:
         _notify_macos("AutoFiller Error", "OPENAI_API_KEY not set")
         return
 
-    _notify_macos_banner("Resume", "Generating...")
+    model = db.get_setting("OPENAI_MODEL", "gpt-4o-mini")
+    _notify_macos_banner("Resume", "Generating (humanized)...")
 
     try:
         import json
-        from openai import OpenAI
+        from job_assistant import generate_resume_json
         from generate_resume import generate_resume_pdf
 
-        client = OpenAI(api_key=api_key)
-
-        system_prompt = (
-            "You are a professional resume generator. "
-            "Output your response strictly as a JSON object matching the following structure. "
-            "DO NOT include markdown block characters like ```json or ```. Just the raw JSON.\n\n"
-            "{\n"
-            '  "name": "Applicant Name",\n'
-            '  "contact": ["City, State", "Phone", "Email"],\n'
-            '  "links": ["LinkedIn", "GitHub", "Portfolio"],\n'
-            '  "summary": "Brief professional summary.",\n'
-            '  "experience": [\n'
-            '    {"title": "Job Title", "company": "Company Name", "location": "City, State", "date": "Date Range", "description": ["Bullet point 1", "Bullet point 2"]}\n'
-            '  ],\n'
-            '  "education": [\n'
-            '    {"degree": "Degree", "institution": "University Name", "location": "City, State", "date": "Date Range", "details": ["Detail 1"]}\n'
-            '  ],\n'
-            '  "skills": [\n'
-            '    {"category": "Lang", "items": "Skill 1, Skill 2"}\n'
-            '  ]\n'
-            "}\n\n"
-            "For the 'category' field in skills: use a single short word, no compound names with 'and' or '&'. "
-            "Max 12 characters. Examples: Lang, Frameworks, Tools, DB, Cloud, OS, DevOps, ML, Infra, QA, Mobile, Web, Security."
+        resume_data = generate_resume_json(
+            resume=_session.get("resume", ""),
+            job_description=_session.get("job_description", ""),
+            api_key=api_key,
+            model=model,
+            temperature=0.9,
         )
 
-        response = client.chat.completions.create(
-            model=db.get_setting("OPENAI_MODEL", "gpt-4o-mini"),
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        text = response.choices[0].message.content or ""
-
-        try:
-            resume_data = json.loads(text)
-        except json.JSONDecodeError as e:
-            _notify_macos("AutoFiller Error", f"Failed to parse resume JSON: {e}")
-            return
-
-        filename = "resume_generated.pdf"
+        filename = "resume.pdf"
         filepath = Path.home() / "Downloads" / filename
         filepath.unlink(missing_ok=True)
 
         generate_resume_pdf(resume_data, str(filepath))
-        pyperclip.copy(text)
+        pyperclip.copy(json.dumps(resume_data, indent=2))
 
         _notify_macos_banner("Resume Generated", f"Saved as {filename} · JSON Copied to clipboard")
         if db.get_setting("RESUME_OPEN_FINDER", "1") == "1":

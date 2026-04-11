@@ -1,6 +1,31 @@
 import json
 from fpdf import FPDF, XPos, YPos
 
+_CHAR_MAP = {
+    "\u2014": "-",   # em dash
+    "\u2013": "-",   # en dash
+    "\u2012": "-",   # figure dash
+    "\u2010": "-",   # hyphen
+    "\u2011": "-",   # non-breaking hyphen
+    "\u2018": "'",   # left single quote
+    "\u2019": "'",   # right single quote
+    "\u201a": ",",   # single low quote
+    "\u201b": "'",   # single high-reversed quote
+    "\u201c": '"',   # left double quote
+    "\u201d": '"',   # right double quote
+    "\u201e": '"',   # double low quote
+    "\u2026": "...", # ellipsis
+    "\u00a0": " ",   # non-breaking space
+    "\u2022": "-",   # bullet
+    "\u2023": "-",   # triangular bullet
+}
+
+def _s(text: str) -> str:
+    """Sanitize text to latin-1 safe characters for built-in PDF fonts."""
+    for ch, rep in _CHAR_MAP.items():
+        text = text.replace(ch, rep)
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
 class ResumePDF(FPDF):
     def __init__(self, data, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -10,16 +35,16 @@ class ResumePDF(FPDF):
         # Name and Contact Info
         self.set_font("helvetica", "B", 24)
         name = self.data.get("name", "Name")
-        self.cell(0, 10, name, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+        self.cell(0, 10, _s(name), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
         self.set_font("helvetica", "", 10)
         
         contact_info = " | ".join(self.data.get("contact", []))
         if contact_info:
-            self.cell(0, 5, contact_info, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+            self.cell(0, 5, _s(contact_info), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
             
         links = " | ".join(self.data.get("links", []))
         if links:
-            self.cell(0, 5, links, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+            self.cell(0, 5, _s(links), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
         self.ln(2)
 
     def section_title(self, title):
@@ -31,18 +56,16 @@ class ResumePDF(FPDF):
 
     def entry(self, title, subtitle, date, location, description):
         self.set_font("helvetica", "B", 11)
-        self.cell(140, 6, title, align="L")
+        self.cell(140, 6, _s(title), align="L")
         self.set_font("helvetica", "I", 10)
-        self.cell(0, 6, date, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="R")
+        self.cell(0, 6, _s(date), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="R")
         self.set_font("helvetica", "B", 10)
-        self.cell(140, 6, subtitle, align="L")
+        self.cell(140, 6, _s(subtitle), align="L")
         self.set_font("helvetica", "I", 10)
-        self.cell(0, 6, location, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="R")
+        self.cell(0, 6, _s(location), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="R")
         self.set_font("helvetica", "", 10)
         for bullet in description:
-            # handle bullets properly and replace special characters
-            bullet = bullet.replace("\u2013", "-").replace("\u2014", "-")
-            self.multi_cell(0, 4, f"- {bullet}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            self.multi_cell(0, 4, _s(f"- {bullet}"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         self.ln(1)
 
 def generate_resume_pdf(data: dict, filepath: str):
@@ -57,8 +80,7 @@ def generate_resume_pdf(data: dict, filepath: str):
     if data.get("summary"):
         pdf.section_title("Summary")
         pdf.set_font("helvetica", "", 10)
-        summary = data["summary"].replace("\u2013", "-").replace("\u2014", "-")
-        pdf.multi_cell(0, 4, summary, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.multi_cell(0, 4, _s(data["summary"]), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(1)
 
     # Skills Section
@@ -69,14 +91,14 @@ def generate_resume_pdf(data: dict, filepath: str):
         categories = []
         for skill in data["skills"]:
             cat = skill.get("category", "").strip().rstrip(":")
-            categories.append(cat + ":" if cat else "")
+            categories.append(_s(cat + ":") if cat else "")
         max_cat_w = max((pdf.get_string_width(c) for c in categories), default=0) + 4
         for skill, category in zip(data["skills"], categories):
             pdf.set_font("helvetica", "B", 10)
             pdf.cell(max_cat_w, 6, category)
             pdf.set_font("helvetica", "", 10)
             remaining_w = pdf.w - pdf.r_margin - pdf.get_x()
-            pdf.multi_cell(remaining_w, 6, skill.get("items", ""), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.multi_cell(remaining_w, 6, _s(skill.get("items", "")), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     # Experience Section
     if data.get("experience"):
