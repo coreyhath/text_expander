@@ -110,12 +110,16 @@ STRUCTURAL RULES — follow these exactly:
 # Rules for resume generation — ATS-optimized, professional, not conversational.
 RESUME_STRUCTURAL_RULES = """\
 RESUME WRITING RULES — follow these exactly:
+- TAILORED TITLE: Generate a "tailored_title" field that exactly mirrors the target job title from the JD (e.g. "Senior Java Backend Engineer"). This appears under the candidate's name on the resume and must match ATS search terms for the role.
+- SPELLING AND GRAMMAR: Every sentence must be grammatically complete and flawless. No fragments, no typos, no misplaced commas. Proofread every bullet before including it.
+- HARD SKILLS: The skills section must list every hard skill explicitly mentioned or implied by the JD that the candidate possesses. Group into distinct categories — do not lump everything into one list. ATS scanners check for exact keyword matches.
 - Summary: 2-3 sentences, professional tone, NO contractions, NO first-person pronouns ("I", "my", "me"). Write as a noun phrase or role descriptor (e.g. "Senior backend engineer with 10+ years..."). ATS-friendly — include key terms from the JD naturally.
 - Experience bullets: Start each with a strong, varied action verb. Rotate from: Built, Designed, Migrated, Reduced, Automated, Led, Implemented, Deployed, Refactored, Scaled, Integrated, Introduced, Established, Cut, Shipped. Never start two consecutive bullets with the same verb.
 - NO contractions. NO first-person "I". Resumes use implied first person (verb-first bullets).
 - Quantify every achievement where data exists: percentages, time saved, user counts, team sizes, request volumes.
 - DYNAMIC BULLET COUNT based on tenure at each role. Use today's date to calculate duration for any role marked "Present". Target bullet counts: under 12 months -> 2-3 bullets; 1-2 years -> 3-4 bullets; 2-4 years -> 4-6 bullets; 4+ years -> 6-8 bullets. Do NOT assign the same bullet count to all roles.
 - Mix bullet formats for variety: some lead with the tool/tech ("Kafka-based event pipeline..."), some with the outcome ("Cut API latency 35% by..."), some with context ("As the team scaled past 100K users...").
+- Each experience bullet must embed at least one hard skill keyword from the JD. Do not silo skills only in the skills section.
 - Every bullet must earn its place — no filler. If a bullet doesn't contain a specific technology, outcome, or scale metric, cut it.
 - Avoid: "responsible for", "helped with", "worked on", "assisted in". Replace with active verbs and outcomes.\
 """
@@ -202,8 +206,10 @@ def _build_system_prompt(
         ),
         "resume": (
             "You are generating a professional, ATS-optimized resume for the candidate. "
+            "Include a tailored_title field matching the exact job title from the JD. "
             "The summary must be noun-phrase style — no first-person pronouns, no contractions. "
-            "Experience bullets must be concrete, quantified, and keyword-rich for ATS scanning. "
+            "The skills section must comprehensively cover every hard skill from the JD the candidate has, grouped by category. "
+            "Experience bullets must be concrete, quantified, grammatically correct, and keyword-rich for ATS scanning. "
             "Use varied action verbs — never start two consecutive bullets the same way. "
             "Assign more bullets to longer tenures and fewer to shorter ones using the dynamic bullet count rule. "
             "No conversational phrasing anywhere. No contractions. Output strict JSON matching the schema provided."
@@ -436,6 +442,7 @@ def generate_resume_json(
             "DO NOT include markdown block characters like ```json or ```. Just raw JSON.\n\n"
             "{\n"
             '  "name": "Applicant Name",\n'
+            '  "tailored_title": "Exact Job Title from JD",\n'
             '  "contact": ["City, State", "Phone", "Email"],\n'
             '  "links": ["LinkedIn", "GitHub", "Portfolio"],\n'
             '  "summary": "Brief professional summary.",\n'
@@ -451,6 +458,7 @@ def generate_resume_json(
             '    {"category": "Lang", "items": "Skill1, Skill2"}\n'
             '  ]\n'
             "}\n\n"
+            "For 'tailored_title': use the exact job title from the job description — this is what ATS systems match first.\n"
             "For 'category' in skills: use a single short word, max 12 chars. "
             "Examples: Lang, Frameworks, Tools, DB, Cloud, OS, DevOps, ML, Infra, QA, Mobile, Web, Security.\n"
         ),

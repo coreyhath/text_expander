@@ -32,12 +32,17 @@ class ResumePDF(FPDF):
         self.data = data
 
     def write_header(self):
-        # Name and Contact Info
+        # Name
         self.set_font("helvetica", "B", 24)
         name = self.data.get("name", "Name")
         self.cell(0, 10, _s(name), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+        # Tailored title — shown below name for ATS keyword matching
+        tailored_title = self.data.get("tailored_title", "")
+        if tailored_title:
+            self.set_font("helvetica", "I", 13)
+            self.cell(0, 6, _s(tailored_title), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
         self.set_font("helvetica", "", 10)
-        
+
         contact_info = " | ".join(self.data.get("contact", []))
         if contact_info:
             self.cell(0, 5, _s(contact_info), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
