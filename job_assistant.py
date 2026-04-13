@@ -90,7 +90,7 @@ AI_TELL_PHRASES: list[str] = [
     "bring to the table",
 ]
 
-# Rules injected into every system prompt to disrupt AI-typical structure.
+# Rules injected into cover letter and Q&A prompts to disrupt AI-typical structure.
 STRUCTURAL_RULES = """\
 STRUCTURAL RULES — follow these exactly:
 - Use contractions everywhere: I'm, I've, I'll, didn't, doesn't, won't, can't, it's.
@@ -105,6 +105,19 @@ STRUCTURAL RULES — follow these exactly:
 - One em-dash or parenthetical aside is fine. More than two looks AI-generated.
 - Do NOT end every sentence on a positive note. Neutral statements are human.
 - Avoid tricolon patterns (listing exactly 3 things in a row, e.g. "X, Y, and Z") more than once.\
+"""
+
+# Rules for resume generation — ATS-optimized, professional, not conversational.
+RESUME_STRUCTURAL_RULES = """\
+RESUME WRITING RULES — follow these exactly:
+- Summary: 2-3 sentences, professional tone, NO contractions, NO first-person pronouns ("I", "my", "me"). Write as a noun phrase or role descriptor (e.g. "Senior backend engineer with 10+ years..."). ATS-friendly — include key terms from the JD naturally.
+- Experience bullets: Start each with a strong, varied action verb. Rotate from: Built, Designed, Migrated, Reduced, Automated, Led, Implemented, Deployed, Refactored, Scaled, Integrated, Introduced, Established, Cut, Shipped. Never start two consecutive bullets with the same verb.
+- NO contractions. NO first-person "I". Resumes use implied first person (verb-first bullets).
+- Quantify every achievement where data exists: percentages, time saved, user counts, team sizes, request volumes.
+- DYNAMIC BULLET COUNT based on tenure at each role. Use today's date to calculate duration for any role marked "Present". Target bullet counts: under 12 months -> 2-3 bullets; 1-2 years -> 3-4 bullets; 2-4 years -> 4-6 bullets; 4+ years -> 6-8 bullets. Do NOT assign the same bullet count to all roles.
+- Mix bullet formats for variety: some lead with the tool/tech ("Kafka-based event pipeline..."), some with the outcome ("Cut API latency 35% by..."), some with context ("As the team scaled past 100K users...").
+- Every bullet must earn its place — no filler. If a bullet doesn't contain a specific technology, outcome, or scale metric, cut it.
+- Avoid: "responsible for", "helped with", "worked on", "assisted in". Replace with active verbs and outcomes.\
 """
 
 # ---------------------------------------------------------------------------
@@ -166,11 +179,15 @@ def _build_system_prompt(
     extra_rules: str = "",
 ) -> str:
     """Assemble the full system prompt: blacklist + structure + voice + task."""
-    voice_block = (
-        f"VOICE: {voice.tone}. {voice.quirks}.\n"
-    )
-    if voice.writing_samples:
-        voice_block += extract_voice_traits(voice.writing_samples) + "\n"
+    # Resumes are ATS-driven — casual voice quirks hurt more than they help.
+    if task == "resume":
+        voice_block = ""
+        structural_rules = RESUME_STRUCTURAL_RULES
+    else:
+        voice_block = f"VOICE: {voice.tone}. {voice.quirks}.\n"
+        if voice.writing_samples:
+            voice_block += extract_voice_traits(voice.writing_samples) + "\n"
+        structural_rules = STRUCTURAL_RULES
 
     task_instructions = {
         "cover_letter": (
@@ -184,12 +201,12 @@ def _build_system_prompt(
             "Keep it under 350 words. No subject line. No bullet points."
         ),
         "resume": (
-            "You are generating a tailored resume for the candidate below. "
-            "Write descriptions that sound like a human wrote them — specific, concrete, varied rhythm. "
-            "Do NOT use action-verb-first bullet points that all sound identical. "
-            "Mix formats: some bullets can start with context ('When the team grew to 12...'), "
-            "some with outcomes ('Cut deploy time from 45min to 8min'), some with tools ('Built a Go service...'). "
-            "Output strict JSON matching the schema provided."
+            "You are generating a professional, ATS-optimized resume for the candidate. "
+            "The summary must be noun-phrase style — no first-person pronouns, no contractions. "
+            "Experience bullets must be concrete, quantified, and keyword-rich for ATS scanning. "
+            "Use varied action verbs — never start two consecutive bullets the same way. "
+            "Assign more bullets to longer tenures and fewer to shorter ones using the dynamic bullet count rule. "
+            "No conversational phrasing anywhere. No contractions. Output strict JSON matching the schema provided."
         ),
         "qa_answer": (
             "You are answering an application question on behalf of the candidate. "
@@ -201,9 +218,9 @@ def _build_system_prompt(
 
     return (
         f"{task_instructions.get(task, '')}\n\n"
-        f"{voice_block}\n"
+        f"{voice_block}"
         f"{_blacklist_block()}\n"
-        f"{STRUCTURAL_RULES}\n"
+        f"{structural_rules}\n"
         f"{extra_rules}"
     ).strip()
 
@@ -439,7 +456,10 @@ def generate_resume_json(
         ),
     )
 
+    today_str = datetime.now().strftime("%B %d, %Y")
     user_prompt = (
+        f"TODAY'S DATE: {today_str} — use this to calculate tenure for any role marked 'Present' "
+        f"when determining dynamic bullet count.\n\n"
         f"EXTRACTED FACTS:\n{facts}\n\n"
         f"CANDIDATE'S ORIGINAL RESUME:\n{resume}\n\n"
         f"TARGET JOB DESCRIPTION:\n{job_description}\n\n"

@@ -429,7 +429,6 @@ class ManagerWindow(tk.Tk):
         self.focus_force()
 
     def _open_profile_switcher(self):
-        self._do_show()
         ProfileSwitcherDialog(self, on_switched=self._after_profile_change)
 
     def _after_profile_change(self):
