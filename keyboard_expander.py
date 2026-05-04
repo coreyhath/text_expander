@@ -184,7 +184,7 @@ def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
                 job_description=_session["job_description"],
                 api_key=api_key,
                 model=model,
-                temperature=0.95,
+                temperature=1,
             )
         else:
             # Fallback: raw prompt template (no humanizer context available)
@@ -241,7 +241,7 @@ def _do_gen_cover_letter_inner(trigger: str, prompt_template: str) -> None:
             job_description=_session.get("job_description", ""),
             api_key=api_key,
             model=model,
-            temperature=0.95,
+            temperature=1,
         )
 
         filename = "coverletter.pdf"
@@ -294,7 +294,7 @@ def _do_gen_resume_inner(trigger: str, prompt_template: str) -> None:
             job_description=_session.get("job_description", ""),
             api_key=api_key,
             model=model,
-            temperature=0.9,
+            temperature=1,
         )
 
         filename = "resume.pdf"
