@@ -406,29 +406,18 @@ def main():
     reload_session()
     reload_triggers()
 
-    if "--ui" in sys.argv:
-        listener_thread = threading.Thread(target=run_listener, daemon=True)
-        listener_thread.start()
+    listener_thread = threading.Thread(target=run_listener, daemon=True)
+    listener_thread.start()
 
-        from ui import ManagerWindow
-        app = ManagerWindow(
-            on_profile_changed=on_profile_changed,
-            get_session=db.get_session_vars,
-        )
-        _show_ui_callback = app.show_window
-        _switch_profile_callback = app.show_profile_switcher
-        print("AutoFiller running with UI. Close the window to quit.")
-        app.mainloop()
-    else:
-        print("Keyboard expander running. Press Ctrl+C to quit.")
-        print(f"Profile: {db.get_current_profile_name()}")
-        print("Shortcuts:", list(_triggers.keys()))
-        print("Run with --ui to open the mappings manager.")
-        try:
-            run_listener()
-        except KeyboardInterrupt:
-            pass
-
+    from ui import ManagerWindow
+    app = ManagerWindow(
+        on_profile_changed=on_profile_changed,
+        get_session=db.get_session_vars,
+    )
+    _show_ui_callback = app.show_window
+    _switch_profile_callback = app.show_profile_switcher
+    print("AutoFiller running with UI. Close the window to quit.")
+    app.mainloop()
 
 if __name__ == "__main__":
     main()
