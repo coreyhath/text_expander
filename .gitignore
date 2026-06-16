@@ -11,3 +11,6 @@ __pycache__/
 
 # Accent MVP TTS cache (generated)
 backend/data/tts_cache/
+
+dist/
+build/
