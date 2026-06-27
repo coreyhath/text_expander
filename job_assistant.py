@@ -46,6 +46,8 @@ AI_TELL_WORDS: list[str] = [
     "holistic", "robust", "cutting-edge", "spearheaded", "orchestrated",
     "revolutionized", "transformative", "innovative", "unparalleled",
     "underscore", "underscores", "encompasses", "invaluable",
+    "honed", "cultivated", "adept", "proficient", "thrived", "excelled",
+    "seamlessly", "seamless", "instrumental", "invaluable", "adhere",
 ]
 
 AI_TELL_PHRASES: list[str] = [
@@ -88,6 +90,20 @@ AI_TELL_PHRASES: list[str] = [
     "circle back",
     "at the end of the day",
     "bring to the table",
+    "that work taught me",
+    "this experience taught me",
+    "it taught me how to",
+    "which gave me",
+    "gave me a deep understanding",
+    "honed my skills",
+    "sharpened my ability",
+    "I thrive in",
+    "I excel at",
+    "passionate about",
+    "deeply committed to",
+    "this role excites me",
+    "what drew me to",
+    "I'm particularly drawn to",
 ]
 
 # Rules injected into cover letter and Q&A prompts to disrupt AI-typical structure.
@@ -105,6 +121,22 @@ STRUCTURAL RULES — follow these exactly:
 - One em-dash or parenthetical aside is fine. More than two looks AI-generated.
 - Do NOT end every sentence on a positive note. Neutral statements are human.
 - Avoid tricolon patterns (listing exactly 3 things in a row, e.g. "X, Y, and Z") more than once.\
+"""
+
+# Rules specific to Q&A answers — lighter than cover letter rules.
+QA_STRUCTURAL_RULES = """\
+STRUCTURAL RULES FOR Q&A — follow these exactly:
+- Use contractions everywhere: I'm, I've, I'll, didn't, doesn't, won't, can't, it's.
+- Vary sentence length. Mix short (under 8 words) with longer ones.
+- Embed skills into narrative. Show, don't list. Wrong: "I am proficient in Python, React, and AWS." Right: "I built the ingestion pipeline in Python, then moved the frontend to React when we outgrew jQuery."
+- Every paragraph must contain at least one specific: a number, a proper noun (company, tool, project), or a concrete outcome.
+- Do NOT parrot the job description back. Show relevance through your own story.
+- Do NOT use bullet points unless the question explicitly asks for a list.
+- One em-dash or parenthetical aside max.
+- Do NOT end on a generic positive note or "lesson learned" statement. End on a concrete detail or just stop.
+- Vary paragraph structure. If one paragraph is [context → action → outcome], the next should NOT follow the same shape.
+- Avoid starting consecutive sentences with "I". Restructure to vary the subject.
+- Do NOT summarize what you just said. No "Overall, ...", "In short, ...", "This shows that..." closers.\
 """
 
 # Rules for resume generation — ATS-optimized, professional, not conversational.
@@ -187,6 +219,11 @@ def _build_system_prompt(
     if task == "resume":
         voice_block = ""
         structural_rules = RESUME_STRUCTURAL_RULES
+    elif task == "qa_answer":
+        voice_block = f"VOICE: {voice.tone}. {voice.quirks}.\n"
+        if voice.writing_samples:
+            voice_block += extract_voice_traits(voice.writing_samples) + "\n"
+        structural_rules = QA_STRUCTURAL_RULES
     else:
         voice_block = f"VOICE: {voice.tone}. {voice.quirks}.\n"
         if voice.writing_samples:
@@ -218,7 +255,20 @@ def _build_system_prompt(
             "You are answering an application question on behalf of the candidate. "
             "Write in first person as if you ARE the candidate. "
             "Be direct and specific. Answer the actual question — don't pad with filler. "
-            "Use the candidate's real experience. Keep it concise."
+            "Use the candidate's real experience.\n\n"
+            "LENGTH CALIBRATION — match your answer length to the question's scope:\n"
+            "- Short factual questions (yes/no, a number, a name): 1 sentence.\n"
+            "- 'Why do you want this role?', 'What interests you?': 2-4 sentences, one short paragraph.\n"
+            "- 'Describe...', 'Tell us about a time...', 'Explain...', 'Walk us through...': "
+            "2-3 short paragraphs (100-200 words total). Give a concrete story with specifics.\n"
+            "- 'Describe the most significant...', 'In detail...', open-ended essay prompts: "
+            "3-4 paragraphs (200-350 words). Go deep on one primary example, optionally mention a second briefly.\n\n"
+            "PARAGRAPH STRUCTURE for multi-paragraph answers:\n"
+            "- Open with your main claim or the specific thing, not a preamble. Drop the reader into the story.\n"
+            "- Vary paragraph purpose: one might set context, one might describe a challenge, one a result. "
+            "Do NOT make every paragraph follow the same [context → action → outcome] template.\n"
+            "- Not every paragraph needs a tidy conclusion. Ending mid-thought or on a practical detail is fine.\n"
+            "- Final paragraph can be short — even one sentence. Don't force a wrap-up."
         ),
     }
 
@@ -514,6 +564,44 @@ def generate_resume_json(
     return data
 
 
+def _infer_length_hint(question: str, max_words: int | None) -> str:
+    """Produce a length-guidance string based on the question phrasing or explicit limit."""
+    if max_words:
+        return f"Hard limit: {max_words} words. Do not exceed this."
+
+    q_lower = question.lower().strip()
+    # Long-form indicators
+    long_indicators = [
+        "describe the most significant", "in detail", "walk us through",
+        "tell us about a time when", "provide a detailed", "explain in depth",
+        "give a comprehensive", "elaborate on",
+    ]
+    # Medium-form indicators
+    medium_indicators = [
+        "describe", "tell us about", "explain", "how would you",
+        "what is your approach", "share an example", "walk through",
+    ]
+    # Short-form indicators
+    short_indicators = [
+        "what is your", "how many", "are you", "do you have",
+        "when can you", "what are your salary", "yes or no",
+        "how did you hear", "are you authorized", "will you now or in the future",
+    ]
+
+    for phrase in long_indicators:
+        if phrase in q_lower:
+            return "This is an open-ended/essay question. Aim for 200-350 words (3-4 paragraphs). Go deep on specifics."
+    for phrase in medium_indicators:
+        if phrase in q_lower:
+            return "This is a medium-length question. Aim for 100-200 words (2-3 short paragraphs). Be concrete."
+    for phrase in short_indicators:
+        if phrase in q_lower:
+            return "This is a short-answer question. Aim for 1-2 sentences. Be direct."
+
+    # Default: medium
+    return "Aim for 80-150 words. Be concrete and direct."
+
+
 def answer_question(
     question: str,
     resume: str,
@@ -522,14 +610,14 @@ def answer_question(
     api_key: str | None = None,
     model: str = "gpt-4o-mini",
     voice: VoiceProfile | None = None,
-    temperature: float = 0.95,
-    max_sentences: int = 3,
+    temperature: float = 0.9,
+    max_words: int | None = None,
     max_audit_passes: int = 2,
 ) -> str:
     """
     Answer an application-form question in human voice.
 
-    Returns a concise answer (default: up to 3 sentences).
+    Length is auto-calibrated based on question phrasing, or capped by max_words if provided.
     """
     api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
     if not api_key:
@@ -538,10 +626,16 @@ def answer_question(
     voice = voice or DEFAULT_VOICE
     client = _create_client(api_key)
 
+    length_hint = _infer_length_hint(question, max_words)
+
     system_prompt = _build_system_prompt(
         "qa_answer",
         voice,
-        extra_rules=f"Keep the answer to {max_sentences} sentences or fewer. Be direct.",
+        extra_rules=(
+            f"LENGTH TARGET: {length_hint}\n"
+            "Do NOT pad with filler to reach the target. If you've answered fully in fewer words, stop. "
+            "Do NOT truncate mid-thought to hit a limit — finish your point, then stop."
+        ),
     )
     user_prompt = (
         f"CANDIDATE'S RESUME:\n{resume}\n\n"
@@ -581,7 +675,7 @@ def main() -> None:
         p.add_argument("--jd", required=True, help="Path to job description text file or raw text")
         p.add_argument("--api-key", default=None, help="OpenAI API key (or set OPENAI_API_KEY)")
         p.add_argument("--model", default="gpt-4o-mini")
-        p.add_argument("--temperature", type=float, default=0.95)
+        p.add_argument("--temperature", type=float, default=0.9)
         p.add_argument("--voice-samples", nargs="*", default=[], help="Paths to writing sample files")
 
     # cover_letter
@@ -592,7 +686,7 @@ def main() -> None:
     ans = sub.add_parser("answer", help="Answer an application question")
     add_common(ans)
     ans.add_argument("--question", required=True, help="The question to answer")
-    ans.add_argument("--max-sentences", type=int, default=3)
+    ans.add_argument("--max-words", type=int, default=None, help="Optional hard word limit")
 
     # resume
     res = sub.add_parser("resume", help="Generate a tailored resume JSON")
@@ -640,7 +734,7 @@ def main() -> None:
             model=args.model,
             temperature=args.temperature,
             voice=voice,
-            max_sentences=args.max_sentences,
+            max_words=args.max_words,
         )
         print(result)
 
