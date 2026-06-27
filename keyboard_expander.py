@@ -58,20 +58,16 @@ def on_profile_changed() -> None:
 
 # ── action handlers ──────────────────────────────────────────────────────────
 
-def _human_type(text: str) -> None:
-    """Type text character by character at human-like speed."""
-    import random
-    for char in text:
-        _controller.type(char)
-        time.sleep(random.uniform(0.04, 0.09))
-
-
-def _type_output(text: str) -> None:
-    """Type output using either human-like emulation or direct typing."""
-    if db.get_setting("TYPING_EMULATION_ENABLED", "1") == "1":
-        _human_type(text)
-    else:
-        _controller.type(text)
+def _paste_output(text: str) -> None:
+    """Output text by copying to clipboard and pasting via Cmd+V."""
+    old_clipboard = pyperclip.paste()
+    pyperclip.copy(text)
+    time.sleep(0.05)
+    _controller.press(Key.cmd)
+    _controller.tap(keyboard.KeyCode.from_char('v'))
+    _controller.release(Key.cmd)
+    time.sleep(0.1)
+    pyperclip.copy(old_clipboard)
 
 
 def _notify_macos(title: str, message: str) -> None:
@@ -131,7 +127,7 @@ def _do_expand(trigger: str, expansion: str) -> None:
     for _ in range(len(trigger)):
         _controller.tap(Key.backspace)
         time.sleep(0.02)
-    _type_output(expansion)
+    _paste_output(expansion)
 
 
 def _do_store_clipboard(trigger: str, var_name: str) -> None:
@@ -169,7 +165,7 @@ def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
 
     api_key = db.get_setting("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        _type_output("[ERROR: OPENAI_API_KEY not set]")
+        _paste_output("[ERROR: OPENAI_API_KEY not set]")
         return
 
     model = db.get_setting("OPENAI_MODEL", "gpt-4o-mini")
@@ -202,9 +198,9 @@ def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
                 chunk.choices[0].delta.content or "" for chunk in stream
             )
         if response:
-            _type_output(response)
+            _paste_output(response)
     except Exception as e:
-        _type_output(f"[LLM ERROR: {e}]")
+        _paste_output(f"[LLM ERROR: {e}]")
 
 
 def _do_gen_cover_letter(trigger: str, prompt_template: str) -> None:
