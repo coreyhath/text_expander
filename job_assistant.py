@@ -125,18 +125,14 @@ STRUCTURAL RULES — follow these exactly:
 
 # Rules specific to Q&A answers — lighter than cover letter rules.
 QA_STRUCTURAL_RULES = """\
-STRUCTURAL RULES FOR Q&A — follow these exactly:
-- Use contractions everywhere: I'm, I've, I'll, didn't, doesn't, won't, can't, it's.
-- Vary sentence length. Mix short (under 8 words) with longer ones.
-- Embed skills into narrative. Show, don't list. Wrong: "I am proficient in Python, React, and AWS." Right: "I built the ingestion pipeline in Python, then moved the frontend to React when we outgrew jQuery."
-- Every paragraph must contain at least one specific: a number, a proper noun (company, tool, project), or a concrete outcome.
-- Do NOT parrot the job description back. Show relevance through your own story.
-- Do NOT use bullet points unless the question explicitly asks for a list.
-- One em-dash or parenthetical aside max.
-- Do NOT end on a generic positive note or "lesson learned" statement. End on a concrete detail or just stop.
-- Vary paragraph structure. If one paragraph is [context → action → outcome], the next should NOT follow the same shape.
-- Avoid starting consecutive sentences with "I". Restructure to vary the subject.
-- Do NOT summarize what you just said. No "Overall, ...", "In short, ...", "This shows that..." closers.\
+Q&A RULES:
+- Contractions everywhere. Vary sentence length — short punchy sentences mixed with longer ones.
+- Embed skills into narrative. Never list them. Show one concrete example, not three generic claims.
+- At least one specific per answer: a number, a tool name, a project, or a real outcome.
+- No bullet points unless the question asks for a list.
+- No summary closer. End on a fact or mid-action. Don't wrap up.
+- Don't start consecutive sentences with "I".
+- One em-dash max.\
 """
 
 # Rules for resume generation — ATS-optimized, professional, not conversational.
@@ -252,23 +248,12 @@ def _build_system_prompt(
             "No conversational phrasing anywhere. No contractions. Output strict JSON matching the schema provided."
         ),
         "qa_answer": (
-            "You are answering an application question on behalf of the candidate. "
-            "Write in first person as if you ARE the candidate. "
-            "Be direct and specific. Answer the actual question — don't pad with filler. "
-            "Use the candidate's real experience.\n\n"
-            "LENGTH CALIBRATION — match your answer length to the question's scope:\n"
-            "- Short factual questions (yes/no, a number, a name): 1 sentence.\n"
-            "- 'Why do you want this role?', 'What interests you?': 2-4 sentences, one short paragraph.\n"
-            "- 'Describe...', 'Tell us about a time...', 'Explain...', 'Walk us through...': "
-            "2-3 short paragraphs (100-200 words total). Give a concrete story with specifics.\n"
-            "- 'Describe the most significant...', 'In detail...', open-ended essay prompts: "
-            "3-4 paragraphs (200-350 words). Go deep on one primary example, optionally mention a second briefly.\n\n"
-            "PARAGRAPH STRUCTURE for multi-paragraph answers:\n"
-            "- Open with your main claim or the specific thing, not a preamble. Drop the reader into the story.\n"
-            "- Vary paragraph purpose: one might set context, one might describe a challenge, one a result. "
-            "Do NOT make every paragraph follow the same [context → action → outcome] template.\n"
-            "- Not every paragraph needs a tidy conclusion. Ending mid-thought or on a practical detail is fine.\n"
-            "- Final paragraph can be short — even one sentence. Don't force a wrap-up."
+            "You are answering a job application question as the candidate — first person, real voice. "
+            "Be direct. Answer the actual question using one concrete example from the resume. "
+            "No filler, no preamble, no wrap-up summary. Drop straight into the story. "
+            "Short questions get short answers (1-3 sentences). "
+            "Story-based questions get 2-3 tight paragraphs max. "
+            "Stop when you've answered it — don't pad to fill space."
         ),
     }
 
@@ -610,7 +595,7 @@ def answer_question(
     api_key: str | None = None,
     model: str = "gpt-4o-mini",
     voice: VoiceProfile | None = None,
-    temperature: float = 0.9,
+    temperature: float = 1.3,
     max_words: int | None = None,
     max_audit_passes: int = 2,
 ) -> str:

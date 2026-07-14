@@ -180,7 +180,7 @@ def _do_llm_query_inner(trigger: str, prompt_template: str) -> None:
                 job_description=_session["job_description"],
                 api_key=api_key,
                 model=model,
-                temperature=0.9,
+                temperature=1.3,
             )
         else:
             # Fallback: raw prompt template (no humanizer context available)
