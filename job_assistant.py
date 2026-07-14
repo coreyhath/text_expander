@@ -21,6 +21,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from normalize_llm_text import normalize_llm_text, normalize_json_strings
 
 __all__ = [
     "VoiceProfile",
@@ -249,11 +250,14 @@ def _build_system_prompt(
         ),
         "qa_answer": (
             "You are answering a job application question as the candidate — first person, real voice. "
-            "Be direct. Answer the actual question using one concrete example from the resume. "
+            "Be direct. Answer the actual question and use specifics from the resume if they ask hands on experience. "
+            "Focus on how instead of what and why. Show your thought process and decision making. "
             "No filler, no preamble, no wrap-up summary. Drop straight into the story. "
-            "Short questions get short answers (1-3 sentences). "
-            "Story-based questions get 2-3 tight paragraphs max. "
+            "Short questions get short answers in one sentence. "
+            "Story-based questions get 2-3 sentences max. "
             "Stop when you've answered it — don't pad to fill space."
+            "Don't include measurable metrics with numbers unless the question specifically asks for them. "
+            "Don't include measurable metrics with numbers unless the question specifically asks for them. "
         ),
     }
 
@@ -304,7 +308,7 @@ def extract_facts(
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,  # low temp for factual extraction
     )
-    return resp.choices[0].message.content or ""
+    return normalize_llm_text(resp.choices[0].message.content or "")
 
 
 def audit_text(text: str) -> list[str]:
@@ -358,7 +362,8 @@ def _rewrite_flagged(
         ],
         temperature=temperature,
     )
-    return resp.choices[0].message.content or text
+    rewritten = resp.choices[0].message.content or text
+    return normalize_llm_text(rewritten)
 
 
 def _run_pipeline(
@@ -387,7 +392,7 @@ def _run_pipeline(
             break
         text = _rewrite_flagged(text, flagged, client, model, system_prompt, temperature)
 
-    return text.strip()
+    return normalize_llm_text(text)
 
 
 # ---------------------------------------------------------------------------
@@ -525,6 +530,7 @@ def generate_resume_json(
     raw = re.sub(r"\s*```$", "", raw.strip())
 
     data: dict[str, Any] = json.loads(raw)
+    data = normalize_json_strings(data)  # ensure all strings are normalized
 
     # Audit the prose fields and rewrite if needed
     prose_fields_to_audit = []
@@ -539,7 +545,7 @@ def generate_resume_json(
     flagged = audit_text(all_prose)
     if flagged:
         audit_sys = _build_system_prompt("resume", voice)
-        rewritten = _rewrite_flagged(all_prose, flagged, client, model, audit_sys)
+        rewritten = normalize_llm_text(_rewrite_flagged(all_prose, flagged, client, model, audit_sys))
         # Re-parse the rewritten bullets back. Since this is best-effort,
         # we replace the summary at minimum.
         lines = [l for l in rewritten.split("\n") if l.strip()]
